@@ -121,7 +121,10 @@ const ConfigSchema = z.object({
           ])
           .optional(),
         theme: z.record(z.string(), z.any()).optional(),
-        plugins: z.array(z.function()).optional(),
+        // 不能直接使用函数，因为在生成配置文件时，函数无法被正确处理
+        plugins: z.array(z.string()).optional(),
+        // 指定tailwind.css的输入路径
+        inputPath: z.string().optional(),
       }),
       z.record(z.string(), z.any()),
     ])

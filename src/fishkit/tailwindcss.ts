@@ -28,15 +28,15 @@ let tailwind: ChildProcess;
 export async function generateTailwindcss(opts: GenerateTailwindcssOpts) {
   const cwd = opts.cwd;
   const binPath = getTailwindBinPath({ cwd });
-  if (existsSync(join(opts.tmpPath, '../.tailwindcss'))) {
-    rmSync(join(opts.tmpPath, '../.tailwindcss'), { recursive: true });
+  const tailwindcssDir = join(opts.tmpPath, '../.tailwindcss');
+  if (existsSync(tailwindcssDir)) {
+    rmSync(tailwindcssDir, { recursive: true });
   }
-  const inputPath = join(
-    opts.tmpPath,
-    '../.tailwindcss/tailwindDirectives.css',
-  );
-  const outputPath = join(opts.tmpPath, '../.tailwindcss/tailwind.css');
-  const configPath = join(opts.tmpPath, '../.tailwindcss/tailwind.config.js');
+  mkdirSync(tailwindcssDir, { recursive: true });
+  const inputPath =
+    opts.config?.inputPath ?? join(tailwindcssDir, 'tailwindDirectives.css');
+  const outputPath = join(tailwindcssDir, 'tailwind.css');
+  const configPath = join(tailwindcssDir, 'tailwind.config.js');
   const customConfig = opts.config;
   const defaultTailwindcssConfig = {
     content: [
@@ -44,25 +44,40 @@ export async function generateTailwindcss(opts: GenerateTailwindcssOpts) {
       './src/components/**/*.{js,ts,jsx,tsx}',
     ],
   };
-  const mergedTailwindcssConfig = {
+  const mergedTailwindcssConfig: Config['tailwindcss'] = {
     ...defaultTailwindcssConfig,
     ...customConfig,
   };
-  if (!existsSync(inputPath)) {
-    mkdirSync(dirname(inputPath), { recursive: true });
-  }
 
-  writeFileSync(
-    inputPath,
-    `@tailwind base;
+  if (opts.config?.inputPath == null) {
+    writeFileSync(
+      inputPath,
+      `@tailwind base;
 @tailwind components;
 @tailwind utilities;
     `,
-  );
+    );
+  }
 
+  // 要对plugins进行特殊处理
   writeFileSync(
     configPath,
-    `export default ${JSON.stringify(mergedTailwindcssConfig, null, 2)}`,
+    `/** @type {import('tailwindcss').Config} */
+export default {
+  content: ${JSON.stringify(mergedTailwindcssConfig.content, null, 2)},
+  theme: ${JSON.stringify(mergedTailwindcssConfig.theme || {}, null, 2)},
+  plugins: ${
+    Array.isArray(mergedTailwindcssConfig.plugins)
+      ? `[${mergedTailwindcssConfig.plugins.join(',')}]`
+      : '[]'
+  },
+  ${Object.entries(mergedTailwindcssConfig)
+    .filter(
+      ([key]) => !['content', 'theme', 'plugins', 'inputPath'].includes(key),
+    )
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+    .join(',\n  ')}
+}`,
   );
 
   await generateFile({ binPath, inputPath, outputPath, configPath });
