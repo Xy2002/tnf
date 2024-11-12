@@ -9,7 +9,7 @@ export const Route = createFileRoute('/')({
 function Home() {
   return (
     <div className={styles.foo}>
-      <h3>Welcome Home!</h3>
+      <h3 className="text-3xl font-bold underline">Welcome Home!</h3>
     </div>
   );
 }
